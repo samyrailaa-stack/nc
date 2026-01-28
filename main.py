@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 
 app = Flask(__name__)
-app.secret_key = "sujal_hawk_nc_device_2026"
+app.secret_key = "sujal_hawk_nc_stealth_2026"
 
 state = {"running": False, "changed": 0, "logs": [], "start_time": None}
 cfg = {
@@ -21,40 +21,15 @@ cfg = {
     "nc_delay": 60,
 }
 
-# Device rotation list (mobile emulation ready)
 DEVICES = [
-    {
-        "deviceName": "Pixel 9 Pro",
-        "width": 1080,
-        "height": 2400,
-        "pixelRatio": 3.0,
-        "mobile": True,
-        "userAgent": "Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 330.0.0.45.112 Android (35/15; 480dpi; 1080x2400; Google; Pixel 9 Pro; raven; raven; en_US)"
-    },
-    {
-        "deviceName": "Galaxy S24 Ultra",
-        "width": 1080,
-        "height": 2340,
-        "pixelRatio": 3.0,
-        "mobile": True,
-        "userAgent": "Mozilla/5.0 (Linux; Android 15; SM-S928B Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 331.0.0.38.120 Android (35/15; 480dpi; 1080x2340; samsung; SM-S928B; dm3q; dm3q; en_US)"
-    },
-    {
-        "deviceName": "OnePlus 12",
-        "width": 1080,
-        "height": 2400,
-        "pixelRatio": 3.0,
-        "mobile": True,
-        "userAgent": "Mozilla/5.0 (Linux; Android 15; CPH2653 Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 329.0.0.55.99 Android (35/15; 480dpi; 1080x2400; OnePlus; CPH2653; OnePlus12; OnePlus12; en_US)"
-    },
-    {
-        "deviceName": "Xiaomi 14 Pro",
-        "width": 1080,
-        "height": 2400,
-        "pixelRatio": 3.0,
-        "mobile": True,
-        "userAgent": "Mozilla/5.0 (Linux; Android 15; 24053PY3BC Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 332.0.0.29.110 Android (35/15; 480dpi; 1080x2400; Xiaomi; 24053PY3BC; shennong; shennong; en_US)"
-    }
+    {"deviceName": "Pixel 9 Pro", "width": 1080, "height": 2400, "pixelRatio": 3.0, "mobile": True,
+     "userAgent": "Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 330.0.0.45.112 Android (35/15; 480dpi; 1080x2400; Google; Pixel 9 Pro; raven; raven; en_US)"},
+    {"deviceName": "Galaxy S24 Ultra", "width": 1080, "height": 2340, "pixelRatio": 3.0, "mobile": True,
+     "userAgent": "Mozilla/5.0 (Linux; Android 15; SM-S928B Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 331.0.0.38.120 Android (35/15; 480dpi; 1080x2340; samsung; SM-S928B; dm3q; dm3q; en_US)"},
+    {"deviceName": "OnePlus 12", "width": 1080, "height": 2400, "pixelRatio": 3.0, "mobile": True,
+     "userAgent": "Mozilla/5.0 (Linux; Android 15; CPH2653 Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 329.0.0.55.99 Android (35/15; 480dpi; 1080x2400; OnePlus; CPH2653; OnePlus12; OnePlus12; en_US)"},
+    {"deviceName": "Xiaomi 14 Pro", "width": 1080, "height": 2400, "pixelRatio": 3.0, "mobile": True,
+     "userAgent": "Mozilla/5.0 (Linux; Android 15; 24053PY3BC Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 332.0.0.29.110 Android (35/15; 480dpi; 1080x2400; Xiaomi; 24053PY3BC; shennong; shennong; en_US)"}
 ]
 
 def log(msg):
@@ -76,23 +51,23 @@ def change_group_name(driver, thread_id, new_name):
     try:
         url = f"https://www.instagram.com/direct/t/{thread_id}/"
         driver.get(url)
-        time.sleep(random.uniform(3, 5))
+        time.sleep(random.uniform(3, 6))
 
-        # Open info
-        info_button = WebDriverWait(driver, 15).until(
+        # Open info button (pr.py selector)
+        info_button = WebDriverWait(driver, 20).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, "svg[aria-label='Conversation information']"))
         )
         info_button.click()
         time.sleep(2)
 
-        # Click change
+        # Click 'Change'
         change_button = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//div[text()='Change']"))
         )
         change_button.click()
         time.sleep(2)
 
-        # Enter new name
+        # Input field
         input_field = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Group name']"))
         )
@@ -105,14 +80,14 @@ def change_group_name(driver, thread_id, new_name):
             EC.element_to_be_clickable((By.XPATH, "//div[text()='Save']"))
         )
         save_button.click()
-        time.sleep(2)
+        time.sleep(3)
 
         log(f"NC SUCCESS → {new_name} for thread {thread_id}")
         state["changed"] += 1
         return True
 
     except Exception as e:
-        log(f"NC FAILED for thread {thread_id}: {str(e)[:80]}")
+        log(f"NC FAILED for thread {thread_id}: {str(e)[:100]}")
         return False
 
 def nc_loop():
@@ -120,7 +95,6 @@ def nc_loop():
     while state["running"]:
         log(f"NC CYCLE {cycle + 1} started")
 
-        # Pick new device
         device = random.choice(DEVICES)
         log(f"Using device: {device['deviceName']} for this cycle")
 
@@ -131,37 +105,37 @@ def nc_loop():
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-notifications")
         options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--window-size=1080,2400")
         options.add_argument(f"--user-agent={device['userAgent']}")
 
-        # Apply mobile emulation
         options.add_experimental_option("mobileEmulation", device)
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option('useAutomationExtension', False)
 
         driver = uc.Chrome(options=options)
 
-        # Improved login method
+        # Improved login
         driver.get("https://www.instagram.com/")
-        time.sleep(3)
+        time.sleep(4)
 
-        # Set sessionid cookie
         driver.add_cookie({
             "name": "sessionid",
             "value": cfg["sessionid"],
             "domain": ".instagram.com",
             "path": "/",
             "secure": True,
-            "httpOnly": True
+            "httpOnly": True,
+            "sameSite": "None"
         })
 
-        # Go to direct inbox to trigger login
         driver.get("https://www.instagram.com/direct/inbox/")
-        time.sleep(5)
+        time.sleep(6)
 
-        # Verify login
-        current_url = driver.current_url
-        if "login" in current_url or "accounts/login" in current_url:
-            log("LOGIN FAILED – Redirected to login page (sessionid invalid/expired)", important=True)
+        # Strict login check
+        if "login" in driver.current_url or "accounts/login" in driver.current_url or "login" in driver.page_source.lower():
+            log("LOGIN FAILED – Redirected or login page detected (sessionid invalid/expired)", important=True)
         else:
-            log("LOGIN SUCCESS – Inbox loaded with sessionid", important=True)
+            log("LOGIN SUCCESS – Direct inbox loaded", important=True)
 
         # Rotate name
         name_index = cycle % len(cfg["names"])
@@ -169,12 +143,11 @@ def nc_loop():
 
         for thread_id in cfg["thread_ids"]:
             change_group_name(driver, thread_id, new_name)
-            time.sleep(4)
+            time.sleep(5)
 
         cycle += 1
-        log(f"Cycle completed. Waiting {cfg['nc_delay']} sec for next")
+        log(f"Cycle completed. Waiting {cfg['nc_delay']} sec")
 
-        # Restart driver + memory clean
         driver.quit()
         gc.collect()
         gc.collect()
@@ -196,7 +169,7 @@ def start():
     state = {"running": True, "changed": 0, "logs": ["STARTED"], "start_time": time.time()}
 
     accounts_raw = request.form["accounts"].strip().split("\n")
-    cfg["sessionid"] = accounts_raw[0].split(":")[0].strip()  # Single sessionid
+    cfg["sessionid"] = accounts_raw[0].split(":")[0].strip()
     cfg["thread_ids"] = [line.split(":")[1].strip() for line in accounts_raw if line.strip()]
 
     cfg["names"] = [n.strip() for n in request.form["names"].split("\n") if n.strip()]
