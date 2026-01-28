@@ -1,14 +1,14 @@
-from flask import Flask, render_template, request, jsonify
+\from flask import Flask, render_template, request, jsonify
 import threading
 import time
+import random
+import os
+import gc
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
-import gc
-import random
-import os
 
 app = Flask(__name__)
 app.secret_key = "sujal_hawk_nc_2026"
@@ -17,9 +17,45 @@ state = {"running": False, "changed": 0, "logs": [], "start_time": None}
 cfg = {
     "sessionid": "",
     "thread_ids": [],  # list of thread_ids
-    "names": [],  # list of name change texts
-    "nc_delay": 60,  # seconds between NC cycles
+    "names": [],       # list of name change texts
+    "nc_delay": 60,    # seconds between NC cycles
 }
+
+# Device rotation list (2025-2026 realistic devices)
+DEVICES = [
+    {
+        "deviceName": "Pixel 9 Pro",
+        "width": 1080,
+        "height": 2400,
+        "pixelRatio": 3.0,
+        "mobile": True,
+        "userAgent": "Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 330.0.0.45.112 Android (35/15; 480dpi; 1080x2400; Google; Pixel 9 Pro; raven; raven; en_US)"
+    },
+    {
+        "deviceName": "Galaxy S24 Ultra",
+        "width": 1080,
+        "height": 2340,
+        "pixelRatio": 3.0,
+        "mobile": True,
+        "userAgent": "Mozilla/5.0 (Linux; Android 15; SM-S928B Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 331.0.0.38.120 Android (35/15; 480dpi; 1080x2340; samsung; SM-S928B; dm3q; dm3q; en_US)"
+    },
+    {
+        "deviceName": "OnePlus 12",
+        "width": 1080,
+        "height": 2400,
+        "pixelRatio": 3.0,
+        "mobile": True,
+        "userAgent": "Mozilla/5.0 (Linux; Android 15; CPH2653 Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 329.0.0.55.99 Android (35/15; 480dpi; 1080x2400; OnePlus; CPH2653; OnePlus12; OnePlus12; en_US)"
+    },
+    {
+        "deviceName": "Xiaomi 14 Pro",
+        "width": 1080,
+        "height": 2400,
+        "pixelRatio": 3.0,
+        "mobile": True,
+        "userAgent": "Mozilla/5.0 (Linux; Android 15; 24053PY3BC Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 332.0.0.29.110 Android (35/15; 480dpi; 1080x2400; Xiaomi; 24053PY3BC; shennong; shennong; en_US)"
+    }
+]
 
 def log(msg):
     entry = f"[{time.strftime('%H:%M:%S')}] {msg}"
@@ -28,7 +64,7 @@ def log(msg):
         state["logs"] = state["logs"][-500:]
     print(entry)
     gc.collect()
-    log_memory()  # Show memory after gc
+    log_memory()
 
 def log_memory():
     memory_usage = gc.get_count()
@@ -40,10 +76,10 @@ def change_group_name(driver, thread_id, new_name):
     try:
         url = f"https://www.instagram.com/direct/t/{thread_id}/"
         driver.get(url)
-        time.sleep(random.uniform(3, 5))  # Basic wait for load
+        time.sleep(random.uniform(3, 5))
 
-        # Open info
-        info_button = WebDriverWait(driver, 10).until(
+        # Open info (pr.py selector)
+        info_button = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, "svg[aria-label='Conversation information']"))
         )
         info_button.click()
@@ -80,47 +116,52 @@ def change_group_name(driver, thread_id, new_name):
         return False
 
 def nc_loop():
-    options = uc.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--disable-notifications")
-
-    driver = uc.Chrome(options=options)
-
-    # Login with sessionid (set cookie)
-    driver.get("https://www.instagram.com")
-    driver.add_cookie({"name": "sessionid", "value": cfg["sessionid"], "domain": ".instagram.com"})
-    driver.refresh()
-    time.sleep(5)
-    log("Logged in with sessionid")
-
     cycle = 0
     while state["running"]:
-        log(f"NC CYCLE {cycle + 1}")
-        name_index = cycle % len(cfg["names"])  # Rotate names
+        log(f"NC CYCLE {cycle + 1} started")
+
+        # New device rotation har cycle pe
+        device = random.choice(DEVICES)
+        log(f"Using device: {device['deviceName']} for this cycle")
+
+        options = uc.ChromeOptions()
+        options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-notifications")
+
+        # Apply device emulation
+        options.add_experimental_option("mobileEmulation", device)
+
+        driver = uc.Chrome(options=options)
+
+        # Fast login with sessionid
+        driver.get("https://www.instagram.com")
+        driver.add_cookie({"name": "sessionid", "value": cfg["sessionid"], "domain": ".instagram.com"})
+        driver.refresh()
+        time.sleep(3)  # Fast wait
+        log("Logged in with sessionid (device rotated)")
+
+        # Rotate name
+        name_index = cycle % len(cfg["names"])
         new_name = cfg["names"][name_index]
 
         for thread_id in cfg["thread_ids"]:
             change_group_name(driver, thread_id, new_name)
-            time.sleep(5)  # Small wait between threads
+            time.sleep(4)  # Small wait between threads
 
         cycle += 1
-        log(f"Waiting {cfg['nc_delay']} sec for next cycle")
+        log(f"Cycle completed. Waiting {cfg['nc_delay']} sec for next")
+
+        # Restart driver for memory clean + new device next cycle
+        driver.quit()
+        gc.collect()
+        gc.collect()  # Double collect for safety
+        log_memory()
         time.sleep(cfg["nc_delay"])
 
-        # Restart driver for memory free
-        driver.quit()
-        driver = uc.Chrome(options=options)
-        # Relogin
-        driver.get("https://www.instagram.com")
-        driver.add_cookie({"name": "sessionid", "value": cfg["sessionid"], "domain": ".instagram.com"})
-        driver.refresh()
-        time.sleep(5)
-        log("Driver restarted and relogged")
-
-    driver.quit()
+    log("NC LOOP STOPPED")
 
 @app.route("/")
 def index():
@@ -131,6 +172,7 @@ def start():
     global state, cfg
     state["running"] = False
     time.sleep(1)
+
     state = {"running": True, "changed": 0, "logs": ["STARTED"], "start_time": time.time()}
 
     accounts_raw = request.form["accounts"].strip().split("\n")
@@ -141,7 +183,7 @@ def start():
     cfg["nc_delay"] = float(request.form.get("nc_delay", "60"))
 
     threading.Thread(target=nc_loop, daemon=True).start()
-    log(f"STARTED NC LOOP WITH {len(cfg['thread_ids'])} GROUPS")
+    log(f"STARTED NC LOOP WITH {len(cfg['thread_ids'])} GROUPS | Device rotation enabled")
 
     return jsonify({"ok": True})
 
