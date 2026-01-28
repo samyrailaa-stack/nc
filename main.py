@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 
 app = Flask(__name__)
-app.secret_key = "sujal_hawk_nc_stealth_2026"
+app.secret_key = "sujal_hawk_nc_fix_2026"
 
 state = {"running": False, "changed": 0, "logs": [], "start_time": None}
 cfg = {
@@ -26,63 +26,48 @@ DEVICES = [
      "userAgent": "Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 330.0.0.45.112 Android (35/15; 480dpi; 1080x2400; Google; Pixel 9 Pro; raven; raven; en_US)"},
     {"deviceName": "Galaxy S24 Ultra", "width": 1080, "height": 2340, "pixelRatio": 3.0, "mobile": True,
      "userAgent": "Mozilla/5.0 (Linux; Android 15; SM-S928B Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 331.0.0.38.120 Android (35/15; 480dpi; 1080x2340; samsung; SM-S928B; dm3q; dm3q; en_US)"},
-    {"deviceName": "OnePlus 12", "width": 1080, "height": 2400, "pixelRatio": 3.0, "mobile": True,
-     "userAgent": "Mozilla/5.0 (Linux; Android 15; CPH2653 Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 329.0.0.55.99 Android (35/15; 480dpi; 1080x2400; OnePlus; CPH2653; OnePlus12; OnePlus12; en_US)"},
-    {"deviceName": "Xiaomi 14 Pro", "width": 1080, "height": 2400, "pixelRatio": 3.0, "mobile": True,
-     "userAgent": "Mozilla/5.0 (Linux; Android 15; 24053PY3BC Build/AP3A.250105.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36 Instagram 332.0.0.29.110 Android (35/15; 480dpi; 1080x2400; Xiaomi; 24053PY3BC; shennong; shennong; en_US)"}
 ]
 
-def log(msg):
+def log(msg, important=False):
     entry = f"[{time.strftime('%H:%M:%S')}] {msg}"
+    if important:
+        entry = f"★★★ {entry} ★★★"
     state["logs"].append(entry)
-    if len(state["logs"]) > 500:
-        state["logs"] = state["logs"][-500:]
     print(entry)
     gc.collect()
-    log_memory()
-
-def log_memory():
-    memory_usage = gc.get_count()
-    entry = f"[MEMORY] Garbage collected. Current count: {memory_usage}"
-    state["logs"].append(entry)
-    print(entry)
 
 def change_group_name(driver, thread_id, new_name):
     try:
         url = f"https://www.instagram.com/direct/t/{thread_id}/"
         driver.get(url)
-        time.sleep(random.uniform(3, 6))
+        time.sleep(random.uniform(4, 7))
 
-        # Open info button (pr.py selector)
         info_button = WebDriverWait(driver, 20).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, "svg[aria-label='Conversation information']"))
         )
         info_button.click()
-        time.sleep(2)
+        time.sleep(3)
 
-        # Click 'Change'
-        change_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//div[text()='Change']"))
+        change_button = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.XPATH, "//div[contains(text(),'Change')]"))
         )
         change_button.click()
-        time.sleep(2)
+        time.sleep(3)
 
-        # Input field
-        input_field = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Group name']"))
+        input_field = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Group name' or contains(@placeholder, 'name')]"))
         )
         input_field.send_keys(Keys.CONTROL + "a")
         input_field.send_keys(Keys.DELETE)
         input_field.send_keys(new_name)
 
-        # Save
-        save_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//div[text()='Save']"))
+        save_button = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.XPATH, "//div[contains(text(),'Save') or @role='button' and contains(text(),'Save')]"))
         )
         save_button.click()
-        time.sleep(3)
+        time.sleep(4)
 
-        log(f"NC SUCCESS → {new_name} for thread {thread_id}")
+        log(f"NC SUCCESS → {new_name} for thread {thread_id}", important=True)
         state["changed"] += 1
         return True
 
@@ -99,22 +84,22 @@ def nc_loop():
         log(f"Using device: {device['deviceName']} for this cycle")
 
         options = uc.ChromeOptions()
-        options.add_argument("--headless")
+        options.add_argument("--headless=new")  # New headless mode for better stealth
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-notifications")
         options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--disable-infobars")
         options.add_argument("--window-size=1080,2400")
         options.add_argument(f"--user-agent={device['userAgent']}")
-
         options.add_experimental_option("mobileEmulation", device)
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
         options.add_experimental_option('useAutomationExtension', False)
 
-        driver = uc.Chrome(options=options)
+        driver = uc.Chrome(options=options, version_main=130)  # Pin Chrome version for stability
 
-        # Improved login
+        # Login process
         driver.get("https://www.instagram.com/")
         time.sleep(4)
 
@@ -129,24 +114,31 @@ def nc_loop():
         })
 
         driver.get("https://www.instagram.com/direct/inbox/")
-        time.sleep(6)
+        time.sleep(8)
 
         # Strict login check
-        if "login" in driver.current_url or "accounts/login" in driver.current_url or "login" in driver.page_source.lower():
-            log("LOGIN FAILED – Redirected or login page detected (sessionid invalid/expired)", important=True)
+        page_source_lower = driver.page_source.lower()
+        current_url = driver.current_url
+        if "login" in current_url or "accounts/login" in current_url or "log in" in page_source_lower or "username" in page_source_lower:
+            log("LOGIN FAILED – Redirected to login or login form detected (sessionid invalid/expired)", important=True)
         else:
-            log("LOGIN SUCCESS – Direct inbox loaded", important=True)
+            log("LOGIN SUCCESS – Direct inbox loaded successfully", important=True)
 
         # Rotate name
         name_index = cycle % len(cfg["names"])
         new_name = cfg["names"][name_index]
 
         for thread_id in cfg["thread_ids"]:
-            change_group_name(driver, thread_id, new_name)
+            success = change_group_name(driver, thread_id, new_name)
+            if not success:
+                log("Retrying same thread after 10s...")
+                time.sleep(10)
+                change_group_name(driver, thread_id, new_name)  # retry once
+
             time.sleep(5)
 
         cycle += 1
-        log(f"Cycle completed. Waiting {cfg['nc_delay']} sec")
+        log(f"Cycle completed. Waiting {cfg['nc_delay']} sec for next")
 
         driver.quit()
         gc.collect()
@@ -176,7 +168,7 @@ def start():
     cfg["nc_delay"] = float(request.form.get("nc_delay", "60"))
 
     threading.Thread(target=nc_loop, daemon=True).start()
-    log(f"STARTED NC LOOP WITH {len(cfg['thread_ids'])} GROUPS | Device rotation enabled")
+    log(f"STARTED NC LOOP WITH {len(cfg['thread_ids'])} GROUPS")
 
     return jsonify({"ok": True})
 
