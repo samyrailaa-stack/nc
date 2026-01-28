@@ -11,17 +11,17 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 
 app = Flask(__name__)
-app.secret_key = "sujal_hawk_nc_2026"
+app.secret_key = "sujal_hawk_nc_device_2026"
 
 state = {"running": False, "changed": 0, "logs": [], "start_time": None}
 cfg = {
     "sessionid": "",
-    "thread_ids": [],  # list of thread_ids
-    "names": [],       # list of name change texts
-    "nc_delay": 60,    # seconds between NC cycles
+    "thread_ids": [],
+    "names": [],
+    "nc_delay": 60,
 }
 
-# Device rotation list (2025-2026 realistic devices)
+# Device rotation list (mobile emulation ready)
 DEVICES = [
     {
         "deviceName": "Pixel 9 Pro",
@@ -78,7 +78,7 @@ def change_group_name(driver, thread_id, new_name):
         driver.get(url)
         time.sleep(random.uniform(3, 5))
 
-        # Open info (pr.py selector)
+        # Open info
         info_button = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, "svg[aria-label='Conversation information']"))
         )
@@ -120,7 +120,7 @@ def nc_loop():
     while state["running"]:
         log(f"NC CYCLE {cycle + 1} started")
 
-        # New device rotation har cycle pe
+        # Pick new device
         device = random.choice(DEVICES)
         log(f"Using device: {device['deviceName']} for this cycle")
 
@@ -130,18 +130,38 @@ def nc_loop():
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-notifications")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument(f"--user-agent={device['userAgent']}")
 
-        # Apply device emulation
+        # Apply mobile emulation
         options.add_experimental_option("mobileEmulation", device)
 
         driver = uc.Chrome(options=options)
 
-        # Fast login with sessionid
-        driver.get("https://www.instagram.com")
-        driver.add_cookie({"name": "sessionid", "value": cfg["sessionid"], "domain": ".instagram.com"})
-        driver.refresh()
-        time.sleep(3)  # Fast wait
-        log("Logged in with sessionid (device rotated)")
+        # Improved login method
+        driver.get("https://www.instagram.com/")
+        time.sleep(3)
+
+        # Set sessionid cookie
+        driver.add_cookie({
+            "name": "sessionid",
+            "value": cfg["sessionid"],
+            "domain": ".instagram.com",
+            "path": "/",
+            "secure": True,
+            "httpOnly": True
+        })
+
+        # Go to direct inbox to trigger login
+        driver.get("https://www.instagram.com/direct/inbox/")
+        time.sleep(5)
+
+        # Verify login
+        current_url = driver.current_url
+        if "login" in current_url or "accounts/login" in current_url:
+            log("LOGIN FAILED – Redirected to login page (sessionid invalid/expired)", important=True)
+        else:
+            log("LOGIN SUCCESS – Inbox loaded with sessionid", important=True)
 
         # Rotate name
         name_index = cycle % len(cfg["names"])
@@ -149,15 +169,15 @@ def nc_loop():
 
         for thread_id in cfg["thread_ids"]:
             change_group_name(driver, thread_id, new_name)
-            time.sleep(4)  # Small wait between threads
+            time.sleep(4)
 
         cycle += 1
         log(f"Cycle completed. Waiting {cfg['nc_delay']} sec for next")
 
-        # Restart driver for memory clean + new device next cycle
+        # Restart driver + memory clean
         driver.quit()
         gc.collect()
-        gc.collect()  # Double collect for safety
+        gc.collect()
         log_memory()
         time.sleep(cfg["nc_delay"])
 
